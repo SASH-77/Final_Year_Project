@@ -20,6 +20,7 @@ public class CommandParserService {
             return new CommandResult(false, "Empty command");
         }
 
+        // Clean and normalize input
         String cleaned = text
                 .toUpperCase()
                 .replaceAll("[^A-Z ]", "")
@@ -32,21 +33,20 @@ public class CommandParserService {
         }
 
         String baseCommand = parts[0];
+        String target = parts[1];
 
         if (!VALID_BASE_COMMANDS.contains(baseCommand)) {
             return new CommandResult(false, "Invalid base command");
         }
 
-        String target = parts[1];
-
         if (!VALID_TARGETS.contains(target)) {
             return new CommandResult(false, "Invalid target");
         }
 
+        // IMPORTANT: return EXACT command format for execution
         return new CommandResult(
                 true,
-                "Command accepted: " + baseCommand + " " + target
+                baseCommand + " " + target
         );
     }
 }
-

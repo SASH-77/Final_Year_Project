@@ -1,0 +1,9 @@
+librosa
+numpy
+scikit-learn
+pickle-mixin
+fastapi
+uvicorn
+sounddevice
+soundfile
+pydub
