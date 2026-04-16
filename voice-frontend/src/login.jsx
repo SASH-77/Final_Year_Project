@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +19,7 @@ function Login() {
 
       if (response.data === "Login successful") {
         localStorage.setItem("user", username);
-        navigate("/dashboard");
+        navigate("/record");
       } else {
         alert("Invalid credentials");
       }

@@ -1,7 +1,6 @@
 package com.example.voice.controller;
 
 import com.example.voice.dto.CommandResult;
-import com.example.voice.dto.SpeechRequest;
 import com.example.voice.service.CommandParserService;
 import com.example.voice.service.CommandExecutionService;
 import com.example.voice.service.LoggingService;
@@ -28,11 +27,11 @@ public class CommandController {
         this.voiceAuthService = voiceAuthService;
     }
 
-    // ✅ Command processing endpoint
+    
     // modified to consume multipart so we can receive raw audio
     @PostMapping(value = "/parse", consumes = { "multipart/form-data" })
     public CommandResult process(
-            @RequestParam("speechText") String speechText,
+            @RequestParam String speechText,
             @RequestPart("audio") org.springframework.web.multipart.MultipartFile audio) {
 
         // first validate the command text
@@ -76,7 +75,7 @@ public class CommandController {
         }
     }
 
-    // ✅ NEW: Live logs endpoint
+    
     @GetMapping("/logs")
     public String getLogs() {
         try {
