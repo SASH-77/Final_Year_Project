@@ -1,6 +1,5 @@
-# server.py
-
-from fastapi import FastAPI, File, UploadFile
+import uuid
+from fastapi import FastAPI, File, UploadFile, Form
 from authenticate import authenticate
 import shutil
 import os
@@ -8,51 +7,125 @@ from pydub import AudioSegment
 
 app = FastAPI()
 
-@app.post("/auth")
-async def auth(file: UploadFile = File(...)):
-    # save incoming audio to a temporary path with original extension
-    filename = file.filename or "upload"
-    # ensure we have an extension; default to .wav
-    _, ext = os.path.splitext(filename)
+
+@app.post("/extract")
+async def extract_audio(
+    file: UploadFile = File(None),
+    username: str = Form(...),
+    mode: str = Form(...),
+    phrase: str = Form("")
+):
+
+    print("\n==============================")
+    print("👤 Username:", username)
+    print("⚙️ Mode:", mode)
+    print("==============================")
+
+    # =========================
+    # 🔹 RESET MODE (NO FILE)
+    # =========================
+    if mode == "reset":
+        result = authenticate(None, username, mode)
+        print("🔄 Reset result:", result)
+        return result
+
+    # =========================
+    # 🔹 VALIDATE FILE
+    # =========================
+    if file is None:
+        return {
+            "status": "ERROR",
+            "message": "Audio file is required"
+        }
+
+    if file.filename == "":
+        return {
+            "status": "ERROR",
+            "message": "Empty file received"
+        }
+
+    # =========================
+    # 🔹 UNIQUE FILE PATHS
+    # =========================
+    unique_id = str(uuid.uuid4())
+
+    _, ext = os.path.splitext(file.filename or "upload")
     if not ext:
-        ext = ".wav"
+        ext = ".webm"
 
-    raw_path = f"temp_audio{ext}"
-    with open(raw_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    raw_path = f"temp_{unique_id}{ext}"
+    wav_path = f"temp_{unique_id}.wav"
 
-    # convert whatever was uploaded to WAV so librosa can read it
-    wav_path = "temp_audio.wav"
+    # =========================
+    # 🔹 SAVE FILE
+    # =========================
     try:
-        AudioSegment.from_file(raw_path).export(wav_path, format="wav")
-    except Exception:
-        # if conversion fails, still attempt to read raw file; let loader raise
-        wav_path = raw_path
+        with open(raw_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    result = authenticate(wav_path)
+        print("📥 Saved file:", raw_path)
+        print("🗣️ Phrase:", phrase)
 
-    # cleanup temp files
-    for p in (raw_path, wav_path):
-        try:
-            os.remove(p)
-        except Exception:
-            pass
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "message": f"File save failed: {str(e)}"
+        }
 
-    return result
+    try:
+        # =========================
+        # 🔹 CONVERT TO WAV
+        # =========================
+        AudioSegment.from_file(
+            raw_path,
+            format=ext.replace(".", "")
+        ).export(wav_path, format="wav")
+
+        print("🔄 Converted to WAV:", wav_path)
+
+    except Exception as e:
+        print("❌ Conversion failed:", e)
+        wav_path = raw_path  # fallback
+
+    try:
+        # =========================
+        # 🔹 AUTHENTICATE
+        # =========================
+        result = authenticate(wav_path, username, mode)
+
+        print("🎯 Result:", result)
+
+        if isinstance(result, dict) and "status" in result:
+            return result
+
+        return {
+            "status": "ERROR",
+            "message": "Invalid response from authenticate()"
+        }
+
+    except Exception as e:
+        print("❌ Processing failed:", e)
+        return {
+            "status": "ERROR",
+            "message": str(e)
+        }
+
+    finally:
+        # =========================
+        # 🔹 CLEANUP
+        # =========================
+        for path in [raw_path, wav_path]:
+            try:
+                if path and os.path.exists(path):
+                    os.remove(path)
+                    print("🧹 Deleted:", path)
+            except Exception as e:
+                print("⚠️ Cleanup failed:", e)
 
 
+# =========================
+# 🔹 RUN SERVER
+# =========================
 if __name__ == "__main__":
-    # when you run `python server.py`, start Uvicorn on port 5000
-    # (matches the Java service's expectation)
     import uvicorn
-
-    uvicorn.run("server:app", host="0.0.0.0", port=5000, reload=True)
-
-
-if __name__ == "__main__":
-    # when you run `python server.py`, start Uvicorn on port 5000
-    # (matches the Java service's expectation)
-    import uvicorn
-
-    uvicorn.run("server:app", host="0.0.0.0", port=5000, reload=True)
-
+    uvicorn.run("server:app", host="0.0.0.0", port=6000, reload=True)

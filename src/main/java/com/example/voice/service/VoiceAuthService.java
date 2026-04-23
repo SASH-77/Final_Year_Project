@@ -1,9 +1,7 @@
 package com.example.voice.service;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -11,48 +9,71 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.util.Map;
 
 @Service
 public class VoiceAuthService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * Sends the audio file to the Python micro‑service and returns whether the
-     * speaker was recognized as authorized.
-     */
-    public boolean authenticate(MultipartFile audio) {
+    public Map<String, Object> processVoice(
+            MultipartFile audio,
+            String username,
+            String mode,
+            String phrase
+    ) {
         try {
-            // build multipart request
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            // RestTemplate does not support MultipartFile directly, so we convert
-            // to a temporary file first.
-            File tmp = File.createTempFile("voice", ".wav");
-            try (FileOutputStream fos = new FileOutputStream(tmp)) {
-                fos.write(audio.getBytes());
+            // ✅ ONLY attach file if it exists (IMPORTANT for RESET)
+            if (audio != null && !audio.isEmpty()) {
+                File tempFile = File.createTempFile("voice", ".webm");
+                audio.transferTo(tempFile);
+
+                body.add("file", new org.springframework.core.io.FileSystemResource(tempFile));
             }
-            body.add("file", new org.springframework.core.io.FileSystemResource(tmp));
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            // ✅ Always send metadata
+            body.add("username", username);
+            body.add("mode", mode);
+            body.add("phrase", phrase);
 
-            // assume python service is running on localhost:5000
-            String url = "http://localhost:5000/auth";
+            HttpEntity<MultiValueMap<String, Object>> request =
+                    new HttpEntity<>(body, headers);
 
-            ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
+            String url = "http://localhost:6000/extract";
 
-            // response body should be JSON like {"status":"ACCESS GRANTED",...}
-            if (response.getStatusCode().is2xxSuccessful()) {
-                String resp = response.getBody();
-                return resp != null && resp.contains("ACCESS GRANTED");
+            ResponseEntity<Map<String, Object>> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.POST,
+                            request,
+                            new ParameterizedTypeReference<>() {}
+                    );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
             }
+
+            return Map.of("status", "ERROR", "message", "Invalid backend response");
+
         } catch (Exception e) {
             e.printStackTrace();
+            return Map.of("status", "ERROR", "message", e.getMessage());
         }
-        return false;
+    }
+
+    // ✅ Helper: default verify mode
+    public Map<String, Object> processVoice(MultipartFile audio, String username) {
+        return processVoice(audio, username, "verify", "");
+    }
+
+    // ✅ Simple boolean auth
+    public boolean authenticate(MultipartFile audio, String username) {
+        Object status = processVoice(audio, username).get("status");
+        return "GRANTED".equals(status);
     }
 }
