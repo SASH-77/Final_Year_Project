@@ -20,9 +20,9 @@ function Dashboard() {
   const [history, setHistory] = useState([]);
   const [logs, setLogs] = useState("");
 
-  const navigate = useNavigate(); // ✅ hook for programmatic navigation
+  const navigate = useNavigate();
 
-  // redirect to login if not authenticated
+
   useEffect(() => {
     if (!localStorage.getItem("user")) {
       navigate("/");
@@ -109,6 +109,7 @@ function Dashboard() {
           const form = new FormData();
           form.append("speechText", voiceText);
           form.append("audio", blob, "voice.wav");
+          form.append("username", localStorage.getItem("user"));
 
           try {
             const response = await fetch("http://localhost:8080/api/command/parse", {

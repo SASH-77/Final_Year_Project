@@ -17,11 +17,12 @@ function Login() {
         { params: { username, password }, headers: { "Content-Type": "application/json" } }
       );
 
-      if (response.data === "Login successful") {
+      if (response.data?.status === "SUCCESS") {
         localStorage.setItem("user", username);
+        localStorage.setItem("token", response.data.token);
         navigate("/record");
       } else {
-        alert("Invalid credentials");
+        alert(response.data?.message || "Invalid credentials");
       }
     } catch (error) {
       console.error("Login error:", error);

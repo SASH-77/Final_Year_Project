@@ -1,7 +1,7 @@
 package com.example.voice.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.example.voice.model.User;
 import com.example.voice.repository.UserRepository;
@@ -12,7 +12,8 @@ public class AuthService {
     @Autowired
     private UserRepository userRepository;
 
-    private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    @Autowired
+    private PasswordEncoder encoder;
 
     public String register(String username, String password) {
 

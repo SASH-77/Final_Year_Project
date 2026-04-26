@@ -11,7 +11,7 @@ export default function VoiceRecorder() {
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
 
-  // 🎨 NEW: Audio visualization refs
+
   const canvasRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -22,9 +22,7 @@ export default function VoiceRecorder() {
 
   const [mode, setMode] = useState("verify");
 
-  // =========================
-  // 🔹 INITIAL SETUP
-  // =========================
+
   useEffect(() => {
     if (!username) {
       setStatus("User not logged in ❌");
@@ -59,9 +57,7 @@ export default function VoiceRecorder() {
     }
   }, [username]);
 
-  // =========================
-  // 🎨 WAVEFORM DRAWING
-  // =========================
+
   const drawWaveform = () => {
     const canvas = canvasRef.current;
     const analyser = analyserRef.current;
@@ -111,9 +107,7 @@ export default function VoiceRecorder() {
     }
   };
 
-  // =========================
-  // 🔄 RESET VOICE
-  // =========================
+
   const handleReset = async () => {
     if (!username) return;
 
@@ -147,9 +141,7 @@ export default function VoiceRecorder() {
     }
   };
 
-  // =========================
-  // 🎙️ RECORDING
-  // =========================
+
   const handleRecording = async () => {
     if (!username) return;
 
@@ -158,7 +150,7 @@ export default function VoiceRecorder() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
 
-        // 🎨 Setup audio context for waveform
+        // Setup audio context for waveform
         const audioContext = new AudioContext();
         const source = audioContext.createMediaStreamSource(stream);
         const analyser = audioContext.createAnalyser();
@@ -170,7 +162,7 @@ export default function VoiceRecorder() {
         audioContextRef.current = audioContext;
         analyserRef.current = analyser;
 
-        drawWaveform(); // 🚀 start animation
+        drawWaveform(); // Start animation
 
         const mediaRecorder = new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
@@ -181,7 +173,7 @@ export default function VoiceRecorder() {
         };
 
         mediaRecorder.onstop = async () => {
-          stopWaveform(); // 🛑 stop animation
+          stopWaveform(); // Stop animation
 
           const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
 
@@ -210,6 +202,12 @@ export default function VoiceRecorder() {
             data.status === "ENROLLED" ||
             data.status === "ENROLLING"
           ) {
+            if (mode === "verify") {
+              setStatus("User Verified ✅");
+              setTimeout(() => navigate("/dashboard"), 1500);
+              return;
+            }
+
             setCurrentPhraseIndex(prev => {
               const next = prev + 1;
 
@@ -218,18 +216,15 @@ export default function VoiceRecorder() {
                 return next;
               }
 
-              if (mode === "enroll") {
-                localStorage.setItem("voiceRegistered", "true");
-              }
-
-              setStatus("User Verified ✅");
+              localStorage.setItem("voiceRegistered", "true");
+              setStatus("Enrollment complete ✅");
               setTimeout(() => navigate("/dashboard"), 1500);
 
               return prev;
             });
 
           } else {
-            setStatus("Access Denied ❌");
+            setStatus(data.message ? `Access Denied: ${data.message}` : "Access Denied ❌");
           }
         };
 
@@ -252,9 +247,7 @@ export default function VoiceRecorder() {
     }
   };
 
-  // =========================
-  // UI
-  // =========================
+
   return (
     <div style={{ textAlign: "center", marginTop: "50px" }}>
       <h1>Voice Recorder</h1>
@@ -266,7 +259,7 @@ export default function VoiceRecorder() {
 
       <p>{`Phrase ${currentPhraseIndex + 1} of ${phrases.length}`}</p>
 
-      {/* 🎨 WAVEFORM CANVAS */}
+
       <canvas
         ref={canvasRef}
         width="400"

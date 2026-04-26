@@ -1,7 +1,24 @@
 import numpy as np
 import os
 import whisper
+import re
+import sqlite3
+import json
+from difflib import SequenceMatcher
 from feature_extraction import extract_features
+
+conn = sqlite3.connect("voice_auth.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS voice_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    embedding TEXT
+)
+""")
+
+conn.commit()
 
 SIMILARITY_THRESHOLD = 0.75
 PHRASE_THRESHOLD = 0.7
@@ -20,6 +37,9 @@ stt_model = whisper.load_model("base")
 # 🔹 UTIL
 # =========================
 
+def similarity(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
 def cosine_similarity(a, b):
     denom = (np.linalg.norm(a) * np.linalg.norm(b))
     if denom == 0:
@@ -35,6 +55,11 @@ def text_similarity(a, b):
         return 0.0
 
     return len(a_words & b_words) / len(a_words | b_words)
+
+
+def normalize_text(text):
+    cleaned = re.sub(r"[^a-z0-9\s]", "", text.lower())
+    return " ".join(cleaned.split())
 
 
 def transcribe_audio(file_path):
@@ -56,6 +81,10 @@ def get_user_profile_dir(username):
     path = os.path.join(PROFILE_DIR, username)
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def get_profile_path(username):
+    return os.path.join(PROFILE_DIR, f"{username}.npy")
 
 
 def get_temp_dir(username):
@@ -91,22 +120,49 @@ def clear_temp(username):
 # =========================
 
 def save_new_profile(username, features):
-    user_dir = get_user_profile_dir(username)
-    index = len(os.listdir(user_dir)) + 1
-    path = os.path.join(user_dir, f"profile_{index}.npy")
+    embedding_json = json.dumps(features.tolist())
+    
+    cursor.execute(
+        "INSERT INTO voice_profiles (username, embedding) VALUES (?, ?)",
+        (username, embedding_json)
+    )
+    
+    conn.commit()
+    print(f"💾 Saved profile for {username} to database")
 
-    np.save(path, features)
-    print(f"💾 Saved profile: {path}")
+
+def save_final_profile(username, new_features):
+    path = get_profile_path(username)
+
+    # If profile exists → append
+    if os.path.exists(path):
+        existing = np.load(path, allow_pickle=True)
+        updated = np.vstack([existing, new_features])
+    else:
+        updated = np.array([new_features])
+
+    np.save(path, updated)
+    print(f"💾 Updated voice profile for {username}")
+
+
+def load_voice(username):
+    path = get_profile_path(username)
+    if not os.path.exists(path):
+        return None
+
+    return np.load(path, allow_pickle=True)
 
 
 def load_all_profiles(username):
-    user_dir = get_user_profile_dir(username)
+    cursor.execute("SELECT embedding FROM voice_profiles WHERE username = ?", (username,))
+    rows = cursor.fetchall()
+    
     profiles = []
-
-    for f in os.listdir(user_dir):
-        if f.endswith(".npy"):
-            profiles.append(np.load(os.path.join(user_dir, f)))
-
+    for row in rows:
+        embedding_json = row[0]
+        embedding_array = np.array(json.loads(embedding_json))
+        profiles.append(embedding_array)
+    
     return profiles
 
 
@@ -139,13 +195,13 @@ def authenticate(file_path, username, mode, phrase=""):
         if mode == "reset":
             return reset_voice(username)
 
-        # 🔹 Extract features
-        features = extract_features(file_path)
-
         # =========================
         # 🔹 ENROLL MODE
         # =========================
         if mode == "enroll":
+            # 🔹 Extract features
+            features = extract_features(file_path)
+
             count = save_temp_sample(username, features)
 
             print(f"🎙️ Enrollment sample {count}/3")
@@ -167,36 +223,70 @@ def authenticate(file_path, username, mode, phrase=""):
         # 🔹 VERIFY MODE
         # =========================
 
-        profiles = load_all_profiles(username)
+        cursor.execute(
+            "SELECT embedding FROM voice_profiles WHERE username=?",
+            (username,)
+        )
 
-        if not profiles:
-            return {"status": "ERROR", "message": "User not enrolled"}
+        rows = cursor.fetchall()
 
-        # 🔹 Voice matching (multi-profile)
-        scores = [cosine_similarity(p, features) for p in profiles]
-        best_voice_score = max(scores)
+        if not rows:
+            return {
+                "status": "REJECTED",
+                "stage": "NO_PROFILE"
+            }
 
-        print("🔍 Voice scores:", scores)
-        print("🏆 Best voice score:", best_voice_score)
+        stored_embeddings = [
+            np.array(json.loads(row[0])) for row in rows
+        ]
 
-        # 🔹 Phrase verification
-        spoken_text = transcribe_audio(file_path)
-        phrase_score = text_similarity(spoken_text, phrase)
+        # 🔹 Transcribe audio for phrase verification
+        result = stt_model.transcribe(file_path)
+        transcribed_text = result["text"]
+        print("🧠 Transcribed:", transcribed_text)
+        print("🎯 Expected:", phrase)
 
-        print("🧠 Phrase score:", phrase_score)
+        expected = normalize_text(phrase)
+        spoken = normalize_text(transcribed_text)
 
-        # 🔥 FINAL DECISION
-        if best_voice_score >= SIMILARITY_THRESHOLD and phrase_score >= PHRASE_THRESHOLD:
+        score = similarity(expected, spoken)
+        word_score = text_similarity(expected, spoken)
+        best_phrase_score = max(score, word_score)
+
+        print(f"📊 Phrase scores: exact={score:.3f}, words={word_score:.3f}, best={best_phrase_score:.3f}")
+
+        if best_phrase_score < PHRASE_THRESHOLD:
+            return {
+                "status": "REJECTED",
+                "stage": "PHRASE_MISMATCH",
+                "expected": expected,
+                "spoken": spoken,
+                "score": best_phrase_score
+            }
+
+        # 🔹 Extract features for voice authentication (only after phrase check passes)
+        features = extract_features(file_path)
+
+        similarities = [
+            cosine_similarity(profile, features)
+            for profile in stored_embeddings
+        ]
+
+        best_similarity = max(similarities)
+
+        print("🔍 All similarities:", similarities)
+        print("🏆 Best similarity:", best_similarity)
+
+        # 🔹 Decision:
+        if best_similarity >= SIMILARITY_THRESHOLD:
             return {
                 "status": "GRANTED",
-                "voice_confidence": float(best_voice_score),
-                "phrase_confidence": float(phrase_score)
+                "confidence": float(best_similarity)
             }
         else:
             return {
                 "status": "DENIED",
-                "voice_confidence": float(best_voice_score),
-                "phrase_confidence": float(phrase_score)
+                "confidence": float(best_similarity)
             }
 
     except Exception as e:

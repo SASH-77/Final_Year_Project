@@ -28,7 +28,7 @@ public class VoiceAuthService {
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            // ✅ ONLY attach file if it exists (IMPORTANT for RESET)
+        
             if (audio != null && !audio.isEmpty()) {
                 File tempFile = File.createTempFile("voice", ".webm");
                 audio.transferTo(tempFile);
@@ -36,7 +36,7 @@ public class VoiceAuthService {
                 body.add("file", new org.springframework.core.io.FileSystemResource(tempFile));
             }
 
-            // ✅ Always send metadata
+            
             body.add("username", username);
             body.add("mode", mode);
             body.add("phrase", phrase);
@@ -66,12 +66,12 @@ public class VoiceAuthService {
         }
     }
 
-    // ✅ Helper: default verify mode
+    
     public Map<String, Object> processVoice(MultipartFile audio, String username) {
         return processVoice(audio, username, "verify", "");
     }
 
-    // ✅ Simple boolean auth
+    
     public boolean authenticate(MultipartFile audio, String username) {
         Object status = processVoice(audio, username).get("status");
         return "GRANTED".equals(status);

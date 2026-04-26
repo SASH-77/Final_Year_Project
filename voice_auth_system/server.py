@@ -91,7 +91,7 @@ async def extract_audio(
         # =========================
         # 🔹 AUTHENTICATE
         # =========================
-        result = authenticate(wav_path, username, mode)
+        result = authenticate(wav_path, username, mode, phrase)
 
         print("🎯 Result:", result)
 

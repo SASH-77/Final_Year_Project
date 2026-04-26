@@ -6,6 +6,8 @@ import com.example.voice.service.CommandExecutionService;
 import com.example.voice.service.LoggingService;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+
 @RestController
 @RequestMapping("/api/command")
 @CrossOrigin
@@ -27,12 +29,17 @@ public class CommandController {
         this.voiceAuthService = voiceAuthService;
     }
 
-    
     // modified to consume multipart so we can receive raw audio
     @PostMapping(value = "/parse", consumes = { "multipart/form-data" })
     public CommandResult process(
             @RequestParam String speechText,
-            @RequestPart("audio") org.springframework.web.multipart.MultipartFile audio) {
+            @RequestParam String username,
+            @RequestPart("audio") org.springframework.web.multipart.MultipartFile audio,
+            Principal principal) {
+
+        if (principal == null || !principal.getName().equals(username)) {
+            return new CommandResult(false, "USER_MISMATCH");
+        }
 
         // first validate the command text
         CommandResult result = parserService.validate(speechText);
@@ -47,7 +54,7 @@ public class CommandController {
         }
 
         // then run voice authentication
-        boolean voiceOk = voiceAuthService.authenticate(audio);
+        boolean voiceOk = voiceAuthService.authenticate(audio, username);
         loggingService.log("VOICE_AUTH", speechText, voiceOk);
 
         if (!voiceOk) {
@@ -75,7 +82,6 @@ public class CommandController {
         }
     }
 
-    
     @GetMapping("/logs")
     public String getLogs() {
         try {
