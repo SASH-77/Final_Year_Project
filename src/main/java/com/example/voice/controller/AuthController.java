@@ -37,7 +37,7 @@ public class AuthController {
     @Autowired
     private AuthenticationManager authenticationManager;
 
-    // 🔐 Register
+
     @PostMapping("/register")
     public String register(@RequestParam String username,
             @RequestParam String password) {
@@ -47,7 +47,7 @@ public class AuthController {
         return authService.register(username, password);
     }
 
-    // 🔐 Login
+    
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestParam String username,
             @RequestParam String password) {
@@ -66,7 +66,7 @@ public class AuthController {
         }
     }
 
-    // 🎯 Phrase API
+
     @GetMapping("/phrase")
     public Map<String, List<String>> getPhrase() {
 
@@ -88,7 +88,7 @@ public class AuthController {
         return Map.of("phrases", phrases.subList(0, 3));
     }
 
-    // 🎙️ Voice Authentication
+    
     @PostMapping("/process")
     public ResponseEntity<?> processVoice(
             @RequestParam("audio") MultipartFile audio,
