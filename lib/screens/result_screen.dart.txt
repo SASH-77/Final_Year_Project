@@ -1,0 +1,23 @@
+import 'package:flutter/material.dart';
+
+class ResultScreen extends StatelessWidget {
+  final Map<String, dynamic> result;
+
+  ResultScreen({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Result")),
+      body: Center(
+        child: Text(
+          result["status"] == "SUCCESS"
+              ? "Access Granted ✅"
+              : "Access Denied ❌\n${result["stage"]}",
+          style: TextStyle(fontSize: 20),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}

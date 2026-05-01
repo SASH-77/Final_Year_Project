@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'voice_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+
+  final usernameController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  void login() async {
+    String username = usernameController.text;
+    String password = passwordController.text;
+
+    String? token = await ApiService.login(username, password);
+
+    if (token != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("jwt", token);
+      await prefs.setString("username", username);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => VoiceScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Login Failed")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Login")),
+      body: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(controller: usernameController, decoration: InputDecoration(labelText: "Username")),
+            TextField(controller: passwordController, decoration: InputDecoration(labelText: "Password")),
+            SizedBox(height: 20),
+            ElevatedButton(onPressed: login, child: Text("Login"))
+          ],
+        ),
+      ),
+    );
+  }
+}

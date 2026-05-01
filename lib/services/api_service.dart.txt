@@ -1,0 +1,59 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = "http://fe80::865c:31ff:fef9:a0af";
+
+
+  static Future<String?> login(String username, String password) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl:8080/auth/login"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "username": username,
+        "password": password
+      }),
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data["token"];
+    }
+    return null;
+  }
+
+  
+  static Future<String> getPhrase() async {
+    final res = await http.get(
+      Uri.parse("$baseUrl:8080/auth/phrase"),
+    );
+
+    final data = jsonDecode(res.body);
+    return data["phrases"][0];
+  }
+
+ 
+  static Future<Map<String, dynamic>> sendAudio(
+      String filePath, String token, String username, String phrase) async {
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse("$baseUrl:8000/process"),
+    );
+
+    request.headers['Authorization'] = "Bearer $token";
+
+    request.fields['username'] = username;
+    request.fields['phrase'] = phrase;
+    request.fields['mode'] = "verify";
+
+    request.files.add(
+      await http.MultipartFile.fromPath('audio', filePath),
+    );
+
+    var response = await request.send();
+    var respStr = await response.stream.bytesToString();
+
+    return jsonDecode(respStr);
+  }
+}

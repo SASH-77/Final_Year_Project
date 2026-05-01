@@ -1,0 +1,208 @@
+import 'package:flutter/material.dart';
+import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'result_screen.dart';
+
+class VoiceScreen extends StatefulWidget {
+  @override
+  _VoiceScreenState createState() => _VoiceScreenState();
+}
+
+class _VoiceScreenState extends State<VoiceScreen> {
+
+  final recorder = AudioRecorder();
+  String phrase = "";
+  String? filePath;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPhrase();
+  }
+
+  void loadPhrase() async {
+    String p = await ApiService.getPhrase();
+    setState(() {
+      phrase = p;
+    });
+  }
+
+  void startRecording() async {
+    await recorder.start();
+  }
+
+  void stopRecording() async {
+    filePath = await recorder.stop();
+    sendAudio();
+  }
+
+  void sendAudio() async {
+    final prefs = await SharedPreferences.getInstance();
+    String token = prefs.getString("jwt")!;
+    String username = prefs.getString("username")!;
+
+    var result = await ApiService.sendAudio(
+        filePath!, token, username, phrase);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(result: result),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Voice Authentication")),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text("Say: $phrase"),
+          ElevatedButton(onPressed: startRecording, child: Text("Start")),
+          ElevatedButton(onPressed: stopRecording, child: Text("Stop")),
+        ],
+      ),
+    );
+  }
+}import 'package:flutter/material.dart';
+import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'result_screen.dart';
+
+class VoiceScreen extends StatefulWidget {
+  @override
+  _VoiceScreenState createState() => _VoiceScreenState();
+}
+
+class _VoiceScreenState extends State<VoiceScreen> {
+
+  final recorder = AudioRecorder();
+  String phrase = "";
+  String? filePath;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPhrase();
+  }
+
+  void loadPhrase() async {
+    String p = await ApiService.getPhrase();
+    setState(() {
+      phrase = p;
+    });
+  }
+
+  void startRecording() async {
+    await recorder.start();
+  }
+
+  void stopRecording() async {
+    filePath = await recorder.stop();
+    sendAudio();
+  }
+
+  void sendAudio() async {
+    final prefs = await SharedPreferences.getInstance();
+    String token = prefs.getString("jwt")!;
+    String username = prefs.getString("username")!;
+
+    var result = await ApiService.sendAudio(
+        filePath!, token, username, phrase);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(result: result),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Voice Authentication")),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text("Say: $phrase"),
+          ElevatedButton(onPressed: startRecording, child: Text("Start")),
+          ElevatedButton(onPressed: stopRecording, child: Text("Stop")),
+        ],
+      ),
+    );
+  }
+}import 'package:flutter/material.dart';
+import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'result_screen.dart';
+
+class VoiceScreen extends StatefulWidget {
+  @override
+  _VoiceScreenState createState() => _VoiceScreenState();
+}
+
+class _VoiceScreenState extends State<VoiceScreen> {
+
+  final recorder = AudioRecorder();
+  String phrase = "";
+  String? filePath;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPhrase();
+  }
+
+  void loadPhrase() async {
+    String p = await ApiService.getPhrase();
+    setState(() {
+      phrase = p;
+    });
+  }
+
+  void startRecording() async {
+    await recorder.start();
+  }
+
+  void stopRecording() async {
+    filePath = await recorder.stop();
+    sendAudio();
+  }
+
+  void sendAudio() async {
+    final prefs = await SharedPreferences.getInstance();
+    String token = prefs.getString("jwt")!;
+    String username = prefs.getString("username")!;
+
+    var result = await ApiService.sendAudio(
+        filePath!, token, username, phrase);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(result: result),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Voice Authentication")),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text("Say: $phrase"),
+          ElevatedButton(onPressed: startRecording, child: Text("Start")),
+          ElevatedButton(onPressed: stopRecording, child: Text("Stop")),
+        ],
+      ),
+    );
+  }
+}
